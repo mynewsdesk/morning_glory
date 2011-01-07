@@ -105,7 +105,8 @@ namespace :morning_glory do
       S3_LOGGING_ENABLED = MORNING_GLORY_CONFIG[Rails.env]['s3_logging_enabled'] || false
       DELETE_PREV_REVISION = MORNING_GLORY_CONFIG[Rails.env]['delete_prev_rev'] || false
       REGEX_ROOT_RELATIVE_CSS_URL = /url\((\'|\")?(\/+.*(#{CONTENT_TYPES.keys.map { |k| '\.' + k.to_s }.join('|')}))\1?\)/
-    
+      REGEX_ROOT_RELATIVE_JS_URL  = /([\'|\"])(\/images\/)/
+      
       # Copy all the assets into the temp directory for processing
       File.makedirs TEMP_DIRECTORY if !FileTest::directory?(TEMP_DIRECTORY)
       puts "* Copying files to working directory for cache-busting-renaming"
@@ -129,6 +130,15 @@ namespace :morning_glory do
         end
       end
 
+      puts "* Replacing image references within JS files"
+      DIRECTORIES.each do |directory|
+        Dir[File.join(TEMP_DIRECTORY, directory, '**', "*.{js}")].each do |file|
+          buffer = File.new(file,'r').read.gsub(REGEX_ROOT_RELATIVE_JS_URL, '\1' + ENV['RAILS_ASSET_ID'] + '\2')
+          File.open(file,'w') {|fw| fw.write(buffer)}
+        end
+      end
+
+
       # TODO: Update references within JS files
       
       bucket = RightAws::S3.new(
@@ -151,7 +161,7 @@ namespace :morning_glory do
 
         # If the configured to delete the prev revision, and the prev revision value was in the YAML (not the blank concat of CLOUDFRONT_REVISION_PREFIX + revision number)
         if DELETE_PREV_REVISION && @@prev_cdn_revision != CLOUDFRONT_REVISION_PREFIX
-          # TODO: Figure out how to delete from the S3 bucket properly
+          # TODO:
           # puts "* Deleting previous CDN revision #{BUCKET}/#{@@prev_cdn_revision}"
           # AWS::S3::Bucket.find(BUCKET).objects(:prefix => @@prev_cdn_revision).each do |object|
           #   puts " ** Deleting #{BUCKET}/#{object.key}"
