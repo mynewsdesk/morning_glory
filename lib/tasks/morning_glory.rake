@@ -81,6 +81,8 @@ namespace :morning_glory do
       require 'right_aws'
       require 'ftools'
       
+      include ActionView::Helpers::AssetTagHelper
+      
       puts 'MorningGlory: Starting deployment to the Cloudfront CDN...'
       
       check_config
@@ -104,8 +106,8 @@ namespace :morning_glory do
                         }
       S3_LOGGING_ENABLED = MORNING_GLORY_CONFIG[Rails.env]['s3_logging_enabled'] || false
       DELETE_PREV_REVISION = MORNING_GLORY_CONFIG[Rails.env]['delete_prev_rev'] || false
-      REGEX_ROOT_RELATIVE_CSS_URL = /url\((\'|\")?(\/+.*(#{CONTENT_TYPES.keys.map { |k| '\.' + k.to_s }.join('|')}))\1?\)/
-      REGEX_ROOT_RELATIVE_JS_URL  = /([\'|\"])(\/images\/)/
+      REGEX_ROOT_RELATIVE_CSS_URL = /(url\([\'|\"]?)(\/images\/)([^\"\')]*)/
+      REGEX_ROOT_RELATIVE_JS_URL  = /([\'|\"])(\/images\/)([^\"\']*)/
       
       # Copy all the assets into the temp directory for processing
       File.makedirs TEMP_DIRECTORY if !FileTest::directory?(TEMP_DIRECTORY)
@@ -125,7 +127,12 @@ namespace :morning_glory do
       puts "* Replacing image references within CSS files"
       DIRECTORIES.each do |directory|
         Dir[File.join(TEMP_DIRECTORY, directory, '**', "*.{css}")].each do |file|
-          buffer = File.new(file,'r').read.gsub(REGEX_ROOT_RELATIVE_CSS_URL) { |m| m.insert m.index('(') + ($1 ? 2 : 1), '/'+ENV['RAILS_ASSET_ID'] }
+          puts file
+          buffer = File.new(file,'r').read
+          buffer.gsub!(REGEX_ROOT_RELATIVE_CSS_URL) do 
+            host = compute_asset_host($2 + $3)
+            $1 + host + "/" + ENV['RAILS_ASSET_ID'] + $2 + $3
+          end
           File.open(file,'w') {|fw| fw.write(buffer)}
         end
       end
@@ -133,13 +140,14 @@ namespace :morning_glory do
       puts "* Replacing image references within JS files"
       DIRECTORIES.each do |directory|
         Dir[File.join(TEMP_DIRECTORY, directory, '**', "*.{js}")].each do |file|
-          buffer = File.new(file,'r').read.gsub(REGEX_ROOT_RELATIVE_JS_URL, '\1' + ENV['RAILS_ASSET_ID'] + '\2')
+          buffer = File.new(file,'r').read
+          buffer.gsub!(REGEX_ROOT_RELATIVE_JS_URL) do 
+            host = compute_asset_host($2 + $3)
+            $1 + host + "/" + ENV['RAILS_ASSET_ID'] + $2 + $3
+          end
           File.open(file,'w') {|fw| fw.write(buffer)}
         end
       end
-
-
-      # TODO: Update references within JS files
       
       bucket = RightAws::S3.new(
         S3_CONFIG[Rails.env]["access_key_id"],
