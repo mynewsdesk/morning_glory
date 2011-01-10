@@ -95,7 +95,7 @@ namespace :morning_glory do
       SYNC_DIRECTORY  = File.join(Rails.root, 'public')
       TEMP_DIRECTORY  = File.join(Rails.root, 'tmp', 'morning_glory', 'cloudfront', Rails.env, ENV['RAILS_ASSET_ID']);
       # Configuration constants
-      BUCKET          = MORNING_GLORY_CONFIG[Rails.env]['bucket'] || Rails.env    
+      BUCKET          = MORNING_GLORY_CONFIG[Rails.env]['bucket'] || S3_CONFIG[Rails.env]['bucket']
       DIRECTORIES     = MORNING_GLORY_CONFIG[Rails.env]['asset_directories'] || %w(images javascripts stylesheets)
       CONTENT_TYPES   = MORNING_GLORY_CONFIG[Rails.env]['content_types'] || {
                           :jpg => 'image/jpeg',
@@ -127,7 +127,6 @@ namespace :morning_glory do
       puts "* Replacing image references within CSS files"
       DIRECTORIES.each do |directory|
         Dir[File.join(TEMP_DIRECTORY, directory, '**', "*.{css}")].each do |file|
-          puts file
           buffer = File.new(file,'r').read
           buffer.gsub!(REGEX_ROOT_RELATIVE_CSS_URL) do 
             host = compute_asset_host($2 + $3)
