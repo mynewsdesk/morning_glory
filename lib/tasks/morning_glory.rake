@@ -102,7 +102,9 @@ namespace :morning_glory do
                           :png => 'image/png',
                           :gif => 'image/gif',
                           :css => 'text/css',
-                          :js  => 'text/javascript'
+                          :js  => 'text/javascript',
+                          :htm => 'text/html',
+                          :html => 'text/html'
                         }
       S3_LOGGING_ENABLED = MORNING_GLORY_CONFIG[Rails.env]['s3_logging_enabled'] || false
       DELETE_PREV_REVISION = MORNING_GLORY_CONFIG[Rails.env]['delete_prev_rev'] || false
