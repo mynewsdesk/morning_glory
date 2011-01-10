@@ -15,7 +15,7 @@ namespace :morning_glory do
       if !defined? MORNING_GLORY_CONFIG[Rails.env] || MORNING_GLORY_CONFIG[Rails.env]['enabled'] != true
           raise "Deployment appears to be disabled for this environment (#{Rails.env}) within config/morning_glory.yml. Specify an alternative environment with RAILS_ENV={environment name}."
       end
-      if !defined? S3_CONFIG[Rails.env]
+      if !defined? S3_CONFIG
         raise "You seem to be lacking your Amazon S3 configuration file, config/s3.yml"
       end
     end
@@ -95,7 +95,7 @@ namespace :morning_glory do
       SYNC_DIRECTORY  = File.join(Rails.root, 'public')
       TEMP_DIRECTORY  = File.join(Rails.root, 'tmp', 'morning_glory', 'cloudfront', Rails.env, ENV['RAILS_ASSET_ID']);
       # Configuration constants
-      BUCKET          = MORNING_GLORY_CONFIG[Rails.env]['bucket'] || S3_CONFIG[Rails.env]['bucket']
+      BUCKET          = MORNING_GLORY_CONFIG[Rails.env]['bucket'] || S3_CONFIG['bucket']
       DIRECTORIES     = MORNING_GLORY_CONFIG[Rails.env]['asset_directories'] || %w(images javascripts stylesheets)
       CONTENT_TYPES   = MORNING_GLORY_CONFIG[Rails.env]['content_types'] || {
                           :jpg => 'image/jpeg',
@@ -149,8 +149,8 @@ namespace :morning_glory do
       end
       
       bucket = RightAws::S3.new(
-        S3_CONFIG[Rails.env]["access_key_id"],
-        S3_CONFIG[Rails.env]["secret_access_key"]
+        S3_CONFIG["access_key_id"],
+        S3_CONFIG["secret_access_key"]
       ).bucket(BUCKET)
       
       begin
@@ -165,7 +165,7 @@ namespace :morning_glory do
             bucket.put(file_path, open(file), {}, "public-read", {'Content-Type' => CONTENT_TYPES[file_ext]})
           end
         end
-
+      
         # If the configured to delete the prev revision, and the prev revision value was in the YAML (not the blank concat of CLOUDFRONT_REVISION_PREFIX + revision number)
         if DELETE_PREV_REVISION && @@prev_cdn_revision != CLOUDFRONT_REVISION_PREFIX
           # TODO:
