@@ -161,18 +161,15 @@ namespace :morning_glory do
             file_path = File.join(ENV['RAILS_ASSET_ID'], file_path)
             file_ext = file.split(/\./)[-1].to_sym
             
-            bucket.put(file_path, open(file), {}, "public-read", {'Content-Type' => CONTENT_TYPES[file_ext]})
+            bucket.put(file_path, open(file), {}, "public-read", 
+              {'Content-Type' => CONTENT_TYPES[file_ext], 'x-amz-storage-class' => 'REDUCED_REDUNDANCY', 'expires' => 1.year.from_now.httpdate})
           end
         end
       
         # If the configured to delete the prev revision, and the prev revision value was in the YAML (not the blank concat of CLOUDFRONT_REVISION_PREFIX + revision number)
         if DELETE_PREV_REVISION && @@prev_cdn_revision != CLOUDFRONT_REVISION_PREFIX
-          # TODO:
-          # puts "* Deleting previous CDN revision #{BUCKET}/#{@@prev_cdn_revision}"
-          # AWS::S3::Bucket.find(BUCKET).objects(:prefix => @@prev_cdn_revision).each do |object|
-          #   puts " ** Deleting #{BUCKET}/#{object.key}"
-          #   object.delete
-          # end
+          puts "* Deleting previous CDN revision #{BUCKET}/#{@@prev_cdn_revision}"
+          RightAws::S3::Bucket.send_later(:delete_folder, @@prev_cdn_revision)
         end
       rescue
         raise
