@@ -27,8 +27,8 @@ namespace :morning_glory do
       begin
         git_rev = `git show --pretty=format:"%H|%ci" --quiet`.split('|')[0]
         if !git_rev.nil?
-          rev = git_rev.to_s
           puts '* Using Git revision'
+          return git_rev.to_s
         end
       rescue
         # Ignore
@@ -37,20 +37,17 @@ namespace :morning_glory do
       begin
         svn_rev = `svnversion .`.chomp.gsub(':','_')
         if svn_rev != 'exported' && svn_rev != '' && svn_rev != nil
-          rev = Digest::MD5.hexdigest( svn_rev ).to_s
           puts '* Using SVN revision'
+          return Digest::MD5.hexdigest( svn_rev ).to_s
         end
       rescue
         # Ignore
       end
       
-      if rev.nil?
-        rev = Time.new.strftime("%Y%m%d%H%M%S") 
-        puts '* Using timestamp revision'
-        @@scm_commit_required = true
-      end
-      
-      return rev
+      # Both GIT and SVN are missing
+      puts '* Using timestamp revision'
+      @@scm_commit_required = true
+      return Time.new.strftime("%Y%m%d%H%M%S") 
     end
 
     def update_revision
