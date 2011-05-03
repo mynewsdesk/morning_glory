@@ -73,8 +73,13 @@ namespace :morning_glory do
       end
     end
 
-    desc "Bump the revision, compile any Sass stylesheets, and deploy assets to S3 and Cloudfront"
-    task :deploy => [:environment] do |t, args|
+    desc "Bump the revision only"
+    task :update_revision => :environment do 
+      update_revision
+    end
+
+    desc "Bump the revision and deploy assets to S3 and Cloudfront"
+    task :deploy => :environment do |t, args|
       require 'right_aws'
       require 'ftools'
       
