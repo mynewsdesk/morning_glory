@@ -152,24 +152,37 @@ namespace :morning_glory do
         end
       end
       
-      bucket = RightAws::S3.new(
-        S3_CONFIG["access_key_id"],
-        S3_CONFIG["secret_access_key"]
-      ).bucket(BUCKET)
-      
       begin
         puts "* Uploading files to S3 Bucket '#{BUCKET}'"
+        queue = Queue.new
         DIRECTORIES.each do |directory|
-          puts " ** Uploading #{directory}"
           Dir[File.join(TEMP_DIRECTORY, directory, '**', "*.{#{CONTENT_TYPES.keys.join(',')}}")].each do |file|
-            file_path = file.gsub(/.*#{TEMP_DIRECTORY}\//, "")
-            file_path = File.join(ENV['RAILS_ASSET_ID'], file_path)
-            file_ext = file.split(/\./)[-1].to_sym
-            
-            bucket.put(file_path, open(file), {}, "public-read", 
-              {'Content-Type' => CONTENT_TYPES[file_ext], 'x-amz-storage-class' => 'REDUCED_REDUNDANCY', 'expires' => 1.year.from_now.httpdate})
+            queue << file
           end
         end
+        threads = []
+        time = Time.now
+        20.times do
+          threads << Thread.new do
+            bucket = RightAws::S3.new(
+              S3_CONFIG["access_key_id"],
+              S3_CONFIG["secret_access_key"]
+            ).bucket(BUCKET)
+            until queue.empty? do
+              file = queue.pop
+              file_path = file.gsub(/.*#{TEMP_DIRECTORY}\//, "")
+              file_path = File.join(ENV['RAILS_ASSET_ID'], file_path)
+              file_ext = file.split(/\./)[-1].to_sym
+              bucket.put(file_path, open(file), {}, "public-read", {
+                'Content-Type' => CONTENT_TYPES[file_ext],
+                'x-amz-storage-class' => 'REDUCED_REDUNDANCY',
+                'expires' => 1.year.from_now.httpdate
+              })
+            end
+          end
+        end
+        threads.map &:join
+        puts " ** Upload of files took #{Time.now - time} seconds"
       
         # If the configured to delete the prev revision, and the prev revision value was in the YAML (not the blank concat of CLOUDFRONT_REVISION_PREFIX + revision number)
         if DELETE_PREV_REVISION && @@prev_cdn_revision != CLOUDFRONT_REVISION_PREFIX
